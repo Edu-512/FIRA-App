@@ -34,6 +34,14 @@ st.markdown(
     """
     <style>
     .block-container {padding-top: 1.4rem;}
+    @media (max-width: 700px) {
+      .block-container {padding: .7rem .75rem 1.5rem .75rem;}
+      .hero {padding: 12px 14px;}
+      .hero h1 {font-size: 1.22rem; line-height: 1.25;}
+      .hero p {font-size: .88rem;}
+      div[data-testid="stHorizontalBlock"] {flex-wrap: wrap; gap: .6rem;}
+      div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {min-width: 100% !important; flex: 1 1 100% !important;}
+    }
     div[data-testid="stMetric"] {
         background-color: rgba(46,125,50,0.07);
         border-left: 5px solid #2E7D32;
@@ -308,24 +316,6 @@ st.sidebar.markdown(
         """
     ), unsafe_allow_html=True)
 
-st.sidebar.divider()
-if len(test):
-    st.sidebar.download_button(
-        "⬇️ Tabla oficial de predicciones",
-        C.anexo_csv(R["anexo"]),
-        "TABLA_ANEXO_predicciones.csv",
-        "text/csv",
-        help="Formato oficial: ID_parcela y rendimiento predicho en t/ha con 4 decimales.",
-        width="stretch",
-    )
-    detalle = test[[ID, EDO, MUNI, "area_ha", "pred", "min_esp", "max_esp", "confianza"]].rename(columns={
-        ID: "ID_parcela", "area_ha": "Area_poligono_ha", "pred": "Rendimiento_predicho_ton_ha",
-        "min_esp": "Minimo_esperado_80", "max_esp": "Maximo_esperado_80", "confianza": "Confianza"})
-    st.sidebar.download_button(
-        "⬇️ Detalle con rangos y confianza",
-        detalle.sort_values("ID_parcela").to_csv(index=False, float_format="%.4f").encode("utf-8-sig"),
-        "predicciones_detalle.csv", "text/csv", width="stretch",
-    )
 
 # ------------------------------------------------------------------------------
 # Encabezado + cifras clave
@@ -334,9 +324,8 @@ st.markdown(
     limpiar_html(
         """
         <div class="hero">
-        <h1>AgroCebada · Mapa y predicción de rendimiento por parcela</h1>
-        <p>Reto FIRA 2026 — explora en el mapa principal cuántas toneladas por hectárea se espera cosechar
-        en cada parcela y consulta el detalle individual a la derecha.</p>
+        <h1>AgroCebada · Cosecha estimada</h1>
+        <p>Encuentra tu parcela y consulta cuántas toneladas podrías cosechar.</p>
         </div>
         """
     ),
@@ -350,7 +339,7 @@ c2.metric("Parcelas por predecir", f"{len(test):,}",
           help="Parcelas nuevas a las que el modelo les estima el rendimiento.")
 c3.metric("Rendimiento promedio", f"{y.mean():.2f} t/ha",
           help="Promedio de las parcelas conocidas; es la referencia general.")
-c4.metric("Error típico del modelo", f"± {mae:.2f} t/ha", f"≈ {error_rel_txt} del promedio", delta_color="off",
+c4.metric("Qué tanto se equivoca en promedio", f"± {mae:.2f} t/ha", f"≈ {error_rel_txt} del promedio", delta_color="off",
           help="En promedio, la estimación se aleja del valor real por esta cantidad.")
 
 if len(test):
@@ -371,6 +360,7 @@ col_mapa, col_detalle = st.columns([1.45, 1], gap="large")
 
 with col_mapa:
     st.subheader("Mapa de rendimiento por parcela")
+    st.info("**Cómo usarlo:** 1) Elige tu municipio.  2) Selecciona tu parcela en la ficha.  3) Revisa las toneladas estimadas y cuánto podrían variar.")
 
     # Filtros del mapa en 2D
     fm1, fm2, fm3 = st.columns([1.1, 1.2, 1.1])
@@ -388,7 +378,7 @@ with col_mapa:
         munis_disp = ["Todos"] + sorted(base_muni_mapa[MUNI].unique().tolist())
 
     muni_mapa = fm2.selectbox("Municipio", munis_disp, key="mapa_muni")
-    mostrar_reales = fm3.checkbox("Incluir parcelas con dato real", value=False)
+    mostrar_reales = fm3.checkbox("Incluir parcelas ya cosechadas y medidas", value=False)
 
     mapa = pd.DataFrame()
     if not pred_df.empty:
@@ -396,8 +386,9 @@ with col_mapa:
             "ID parcela": pred_df["ID parcela"].astype(str),
             "Estado": pred_df["Estado"],
             "Municipio": pred_df["Municipio"],
-            "Tipo": "Por estimar",
+            "Tipo": "Con estimación",
             "Rendimiento (t/ha)": pred_df["Rendimiento estimado (t/ha)"],
+            "Toneladas estimadas": pred_df["Toneladas totales (*)"],
             "Área (ha)": pred_df["Área (ha)"],
             "Confianza": pred_df["Confianza"],
             "Latitud": pred_df["Latitud"],
@@ -409,8 +400,9 @@ with col_mapa:
             "ID parcela": train[ID].astype(str),
             "Estado": train[EDO],
             "Municipio": train[MUNI],
-            "Tipo": "Con dato real",
+            "Tipo": "Ya cosechada y medida",
             "Rendimiento (t/ha)": train[Y],
+            "Toneladas estimadas": train[Y] * train["_area"] if "_area" in train.columns else np.nan,
             "Área (ha)": train["_area"] if "_area" in train.columns else np.nan,
             "Confianza": "Dato conocido",
             "Latitud": train["_lat"] if "_lat" in train.columns else np.nan,
@@ -437,7 +429,7 @@ with col_mapa:
                 ratio = float(np.clip((val - rend_min) / (rend_max - rend_min), 0, 1))
                 # Rojo para rendimiento bajo, verde para rendimiento alto.
                 rgb = [int(198 - ratio * 187), int(40 + ratio * 125), int(40 - ratio * 29)]
-            return rgb + ([225] if tipo == "Por estimar" else [125])
+            return rgb + ([225] if tipo == "Con estimación" else [125])
 
         mapa["color_pdk"] = mapa.apply(
             lambda r: calcular_color(r["Rendimiento (t/ha)"], r["Tipo"]), axis=1
@@ -461,11 +453,12 @@ with col_mapa:
 
         tooltip = {
             "html": (
-                "<b>Parcela:</b> {ID parcela}<br/>"
-                "<b>Tipo:</b> {Tipo}<br/>"
                 "<b>Municipio:</b> {Municipio}, {Estado}<br/>"
+                "<b>Cosecha estimada:</b> {Toneladas estimadas} toneladas<br/>"
                 "<b>Rendimiento:</b> {Rendimiento (t/ha)} t/ha<br/>"
-                "<b>Área:</b> {Área (ha)} ha<br/>"
+                "<b>Estado:</b> {Tipo}<br/>"
+                "<b>Parcela (ID):</b> {ID parcela}<br/>"
+                "<b>Superficie del terreno registrado:</b> {Área (ha)} ha<br/>"
                 "<b>Confianza:</b> {Confianza}"
             ),
             "style": {"backgroundColor": "#1B5E20", "color": "white"},
@@ -502,6 +495,7 @@ with col_mapa:
                             "Municipio": str(r["Municipio"]),
                             "Tipo": r["Tipo"],
                             "Rendimiento (t/ha)": float(r["Rendimiento (t/ha)"]),
+                            "Toneladas estimadas": float(r["Toneladas estimadas"]) if pd.notna(r["Toneladas estimadas"]) else 0,
                             "Área (ha)": float(r["Área (ha)"]) if pd.notna(r["Área (ha)"]) else 0,
                             "Confianza": str(r["Confianza"]),
                             "color_pdk": r["color_pdk"],
@@ -531,17 +525,36 @@ with col_mapa:
             tooltip=tooltip,
             map_style="light",
         )
-        st.pydeck_chart(deck, use_container_width=True)
+        st.pydeck_chart(deck, use_container_width=True, height=380)
         st.caption(
-            "Mapa plano 2D: rojo = rendimiento bajo y verde = alto. "
+            "**Leyenda:** 🔴 rojo = rinde menos · 🟢 verde = rinde más. "
             "El tamaño de los puntos representa aproximadamente la superficie de la parcela. "
-            "Las parcelas por estimar comparten la estimación de su municipio; el modelo combina "
+            "Las parcelas con estimación comparten la estimación de su municipio; el modelo combina "
             "el promedio municipal con el estatal."
-            + ("" if features else " · Se muestran puntos porque no se encontraron geometrías de parcela en parcelas.geojson.")
+        )
+
+    if len(test):
+        st.markdown("**Descargas para técnicos**")
+        dl1, dl2 = st.columns(2)
+        dl1.download_button(
+            "⬇️ Tabla oficial de predicciones",
+            C.anexo_csv(R["anexo"]),
+            "TABLA_ANEXO_predicciones.csv",
+            "text/csv",
+            help="Archivo de entrega con 4 decimales.",
+            width="stretch",
+        )
+        detalle_descarga = test[[ID, EDO, MUNI, "area_ha", "pred", "min_esp", "max_esp", "confianza"]].rename(columns={
+            ID: "ID_parcela", "area_ha": "Area_ha", "pred": "Rendimiento_ton_ha",
+            "min_esp": "Minimo_esperado_80", "max_esp": "Maximo_esperado_80", "confianza": "Confianza"})
+        dl2.download_button(
+            "⬇️ Detalle, rangos y confianza",
+            detalle_descarga.sort_values("ID_parcela").to_csv(index=False, float_format="%.4f").encode("utf-8-sig"),
+            "predicciones_detalle.csv", "text/csv", width="stretch",
         )
 
 with col_detalle:
-    st.subheader("Detalle de parcela y zona")
+    st.subheader("Tu ficha de cosecha")
     if pred_df.empty:
         st.info("No hay parcelas por predecir en los datos cargados.")
     else:
@@ -565,32 +578,21 @@ with col_detalle:
         muni_sel = fila["Municipio"]
         n_muni = int(fila["Parcelas conocidas en el municipio"])
 
+        area_v = fila["Área (ha)"]
+        toneladas_v = float(fila["Toneladas totales (*)"]) if pd.notna(fila["Toneladas totales (*)"]) else np.nan
+        err_ton_ficha = mae * float(area_v) if pd.notna(area_v) else np.nan
+        st.metric("¿Cuántas toneladas podrías cosechar?", f"≈ {toneladas_v:,.1f} toneladas" if np.isfinite(toneladas_v) else "—",
+                  f"Superficie del terreno registrado: {area_v:.2f} ha" if pd.notna(area_v) else None)
+        st.metric("¿Cuánto podría desviarse?", f"± {err_ton_ficha:,.1f} toneladas" if np.isfinite(err_ton_ficha) else "—",
+                  f"Referencia basada en el error medio global de {mae:.2f} t/ha; no es un intervalo garantizado.", delta_color="off")
         m1, m2 = st.columns(2)
         m1.metric("Rendimiento estimado", f"{fila['Rendimiento estimado (t/ha)']:.2f} t/ha")
-        m2.metric(
-            f"Rango esperado ({nivel}%)",
-            f"{fila['Mínimo esperado (t/ha)']:.2f} – {fila['Máximo esperado (t/ha)']:.2f}",
+        m2.metric("Confianza en la zona", fila["Confianza"], f"{n_muni} parcelas conocidas", delta_color="off")
+        st.markdown(
+            f"**Rango orientativo:** En 8 de cada 10 casos, el rendimiento queda entre "
+            f"**{fila['Mínimo esperado (t/ha)']:.2f} y {fila['Máximo esperado (t/ha)']:.2f} t/ha**."
         )
-
-        m3, m4 = st.columns(2)
-        area_v = fila["Área (ha)"]
-        if pd.notna(area_v) and pd.notna(fila["Toneladas totales (*)"]):
-            m3.metric(
-                "Área y cosecha estimada",
-                f"{area_v:.2f} ha",
-                f"~{fila['Toneladas totales (*)']:.1f} t totales",
-                delta_color="off",
-            )
-        else:
-            m3.metric("Área de la parcela", "—")
-
         peso_muni = n_muni / (n_muni + k) if (n_muni + k) else 0.0
-        m4.metric(
-            "Confianza en la zona",
-            fila["Confianza"],
-            f"{n_muni} parcelas conocidas ({peso_muni * 100:.0f}% peso municipal)",
-            delta_color="off",
-        )
 
         tm_i = R["tabla_muni"].set_index(MUNI)
         prom_muni = float(tm_i["prom_obs"].get(muni_sel, np.nan))
@@ -646,8 +648,8 @@ with col_detalle:
                     f"margen orientativo de error: **±${err_ton * precio:,.0f}**"
                 )
         st.caption(
-            "Úsalo para planear o dimensionar un crédito por zona; no garantiza el rendimiento "
-            "de una parcela individual. El margen usa el MAE global como referencia, no como intervalo garantizado."
+            "Útil para planear la venta o pedir un crédito. No considera su variedad, fecha de siembra ni daños por granizo o helada. "
+            "La desviación usa el error medio global como referencia, no como intervalo garantizado."
         )
 
         # ¿De dónde sale este número? (Q13)
@@ -738,7 +740,7 @@ tab_pred, tab_zonas, tab_modelo = st.tabs(
     [
         "Tabla de predicciones y descargas",
         "Análisis por estado y municipio",
-        "Cómo funciona y validación",
+        "Para técnicos: cómo funciona el modelo",
     ]
 )
 
@@ -759,7 +761,7 @@ with tab_pred:
                 <div class="leyenda">
                 <div class="col-exp"><b>Rendimiento estimado</b><span>Toneladas por hectárea (t/ha) esperadas.</span></div>
                 <div class="col-exp"><b>Mínimo / Máximo esperado</b><span>Intervalo esperado según el nivel elegido en la barra lateral.</span></div>
-                <div class="col-exp"><b>Área (ha)</b><span>Superficie del polígono de la parcela en hectáreas.</span></div>
+                <div class="col-exp"><b>Área (ha)</b><span>Superficie del terreno registrado, en hectáreas.</span></div>
                 <div class="col-exp"><b>Toneladas totales (*)</b><span>Rendimiento × área: cosecha total aproximada.</span></div>
                 <div class="col-exp"><b>Parcelas conocidas</b><span>Parcelas con dato real en ese mismo municipio.</span></div>
                 <div class="col-exp"><b>Confianza</b><span>Seguridad de la estimación: Alta, Media, Baja o Muy baja.</span></div>
@@ -884,7 +886,7 @@ with tab_zonas:
         redondear_barras(fig)
         mostrar_grafico(fig)
 
-        st.markdown("#### Variación interna en los municipios mostrados")
+        st.markdown("#### Qué tan distinto rinden las parcelas")
         munis_graf = tm_v[MUNI].tolist()[:12]
         sub = train[train[MUNI].isin(munis_graf)]
         if len(sub):
