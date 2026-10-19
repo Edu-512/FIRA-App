@@ -132,7 +132,7 @@ if __name__ == "__main__":
         "ID_parcela": test["ID_POLIGON"].values,
         "Rendimiento_predicho_ton_ha": np.round(pred, 4),
     }).sort_values("ID_parcela").reset_index(drop=True)
-    entrega.to_csv("TABLA_ANEXO_predicciones.csv", index=False)
+    entrega.to_csv("TABLA_ANEXO_predicciones.csv", index=False, float_format="%.4f")
 
     detalle = pd.DataFrame({
         "ID_parcela": test["ID_POLIGON"].values,
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         "IC80_min": np.round(lo, 4), "IC80_max": np.round(hi, 4),
         "Municipio": test["Municipio"].values, "Estado": test["Estado"].values,
     }).sort_values("ID_parcela").reset_index(drop=True)
-    detalle.to_csv("predicciones_detalle.csv", index=False)
+    detalle.to_csv("predicciones_detalle.csv", index=False, float_format="%.4f")
 
     print(f"\nPredicciones generadas: {len(entrega)} parcelas")
     print(f"  Rango: {pred.min():.4f} a {pred.max():.4f} t/ha")
