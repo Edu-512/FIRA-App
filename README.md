@@ -1,6 +1,6 @@
 # AgroCebada FIRA 2026 — App de rendimiento estimado de cebada
 
-App con la cosecha estimada de las 59 parcelas de evaluación, organizada por público en 4 pestañas:
+App de Streamlit con la cosecha estimada de cebada para las **59 parcelas sin rendimiento medido** (de un total de 197; las otras 138 ya están medidas y sirven para entrenar y validar el modelo), organizada por público en 4 pestañas:
 
 | Pestaña | Para quién | Qué tiene |
 |---|---|---|
@@ -22,7 +22,7 @@ Usa el modelo jerárquico municipio → estado (`modelo_agrocebada.py`, k = 1).
 | `parcelas_centroides.csv` | Centro (lon, lat) de cada parcela |
 | `parcelas.geojson` | Forma real de las 197 parcelas (ya incluido; se generó con el paso 2) |
 | `preparar_datos.py` | Genera `parcelas.geojson` desde el shapefile oficial |
-| `requirements.txt` | Librerías con las versiones probadas |
+| `requirements.txt` | Dependencias de la app (geopandas solo lo usa `preparar_datos.py`) |
 
 ## 1. Correr la app
 
@@ -46,14 +46,15 @@ Sin `parcelas.geojson` la app funciona igual y dibuja cada parcela como un punto
 
 ## 3. Publicar en Streamlit Community Cloud
 
-1. Subir esta carpeta a un repositorio público de GitHub (incluida la carpeta `.streamlit`).
-2. En share.streamlit.io: *New app* → elegir el repositorio → archivo principal `app_agrocebada.py`.
-3. Abrir el enlace en una ventana de incógnito para confirmar que el jurado puede verla sin cuenta.
+1. Subir esta carpeta a un repositorio de GitHub (público o privado; incluye la carpeta `.streamlit` y los CSV).
+2. En [share.streamlit.io](https://share.streamlit.io): *New app* → elegir el repositorio → archivo principal **`app_agrocebada.py`** (ruta exacta) → recursos por defecto (2 vCPU / 4 GB RAM, suficientes para este dataset).
+3. Cada push a `main` re-despliega la app automáticamente; no requiere secrets ni variables de entorno.
+4. Abrir el enlace en una ventana de incógnito para confirmar que el jurado puede verla sin cuenta.
 
 ## Notas de interpretación
 
 - Todo lo oficial (mapa, ficha, tabla descargable) usa **k = 1**. El simulador de la pestaña "Para técnicos" es solo didáctico.
-- La tabla descargable *Tabla oficial de predicciones* es idéntica al anexo: `ID_parcela`, `Rendimiento_predicho_ton_ha`, 4 decimales.
+- La descarga *Tabla oficial de predicciones* es idéntica al anexo: `ID_parcela`, `Rendimiento_predicho_ton_ha`, 4 decimales. Además hay dos descargas extra: detalle con rangos y confianza, y la tabla filtrada que se ve en pantalla.
 - Las métricas (MAE 0.332, RMSE 0.499, R² 0.654) son el promedio de 10 repeticiones de validación cruzada estratificada, igual que en el reporte.
 - **Confianza** = qué tanto se equivocó el modelo en cada municipio durante la validación (Alta < 0.25 t/ha; Media < 0.35; Baja ≥ 0.35; Muy baja con menos de 3 parcelas conocidas). No depende del número de parcelas.
 - **Rango al 80%**: por municipio cuando hay 10 o más parcelas conocidas; si no, el rango general del modelo (−0.52 a +0.53 t/ha).
