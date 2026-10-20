@@ -1,0 +1,9 @@
+# Entorno virtual
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Streamlit (credenciales locales)
+.streamlit/secrets.toml

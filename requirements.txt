@@ -1,0 +1,15 @@
+# Runtime de la app (Streamlit Community Cloud)
+streamlit==1.66.0
+streamlit-folium==0.27.4
+folium==0.20.0
+branca==0.8.2
+plotly==7.1.0
+pandas==3.0.5
+numpy==2.5.3
+scikit-learn==1.9.1
+
+# Importado explicitamente en app_agrocebada.py (from jinja2 import Template)
+jinja2==3.1.6
+
+# Solo lo usa preparar_datos.py (script local de preparacion; la app desplegada no lo importa)
+geopandas
