@@ -169,6 +169,7 @@ st.markdown(
 
     .footer-app {margin-top:28px; padding-top:14px; border-top:1px solid #DCE9DC;
                  color:#78909C; font-size:.8rem; text-align:center;}
+    .footer-eq {color:#2E7D32; font-weight:600;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -832,4 +833,6 @@ with tab_tecnicos:
 # Pie de pagina
 # ------------------------------------------------------------------------------
 st.markdown(f'<div class="footer-app">AgroCebada · Reto FIRA 2026 — modelo jerárquico municipio → estado (k = 1) · '
-            f"datos del ciclo {CICLO} · error promedio ±{mae:.2f} t/ha</div>", unsafe_allow_html=True)
+            f"datos del ciclo {CICLO} · error promedio ±{mae:.2f} t/ha<br>"
+            f'<span class="footer-eq">Equipo Cocodrillers</span> · Osvaldo Juárez · Christian Flores · Eduardo Ballinas · Ángel Santiago · José Legy'
+            f"</div>", unsafe_allow_html=True)
