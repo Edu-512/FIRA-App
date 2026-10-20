@@ -3,7 +3,8 @@
 
 # Python
 __pycache__/
-*.py[cod]
+.vscode/
+.DS_Store
 
 # Streamlit (credenciales locales)
 .streamlit/secrets.toml
